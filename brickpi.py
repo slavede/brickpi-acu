@@ -40,5 +40,34 @@ def azimuth_get():
 
 	return response
 
+
+@app.route('/acu/elevation', methods=['PUT'])
+def elevation_put():
+
+	acu.set_elevation(int(request.json['value']))
+
+	response = Response(
+		response = json.dumps(
+			{
+				"elevation" : acu.get_elevation(),
+				"brick_pi_elevation" : acu.get_brick_pi_elevation()
+			}),
+		status = 200,
+		mimetype = "application/json");
+
+	return response
+
+@app.route('/acu/elevation', methods=['GET'])
+def elevation_get():
+	response = Response(
+		response = json.dumps(
+			{
+				"value" : acu.get_elevation()
+			}),
+		status = 200,
+		mimetype = "application/json");
+
+	return response
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
