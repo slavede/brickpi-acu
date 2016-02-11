@@ -21,7 +21,7 @@ def azimuth_put():
 		response = json.dumps(
 			{
 				"azimuth" : acu.get_azimuth(),
-				"brick_pi_azimuth" : acu.get_brick_pi_azimuth()
+				"brick_pi_azimuth" : acu.get_brick_pi_azimuth() - 180
 			}),
 		status = 200,
 		mimetype = "application/json");
