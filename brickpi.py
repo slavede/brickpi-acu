@@ -5,8 +5,14 @@ import json
 from flask import Flask,request,Response
 from acu import Acu
 
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
 app = Flask(__name__)
-acu = Acu()
+
+file_handler = TimedRotatingFileHandler('/var/log/brickpi-flask.log')
+app.logger.addHandler(file_handler)
+acu = Acu(logger = app.logger)
 
 @app.route('/')
 def hello_world():
