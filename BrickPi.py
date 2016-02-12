@@ -171,7 +171,9 @@ class Motor():
 
         return 0
 
-    def rotate(self, power, degrees):
+    def rotate(self, power, degrees, sensors = []):
+        print "Got sensors"
+        print str(sensors)
         self.power = abs(power)
 
         if degrees == 0:
@@ -208,7 +210,7 @@ class Motor():
 
         # This lets you print the degree symbol
         degree_str =  u'\xb0'
-
+        counter = 0
         while True:
 
             # We've been asleep for (probably) 100ms, note the current time
@@ -244,6 +246,17 @@ class Motor():
                           time_to_sleep))
             '''
 
+            print "Checking sensors----------"
+            counter += 1
+            for sensor in sensors:
+                if (counter == 5):
+                    sensor['update_values_method']()
+                    counter = 0
+                print str(sensor['brickpi'].Sensor[sensor['port']])
+                if (sensor['brickpi'].Sensor[sensor['port']] == 1):
+                    self.stop(True)
+                    return False
+
             # We are within 200ms of our target position.  Calculate how many ms
             # to sleep so that we can wake up, stop the motor and hopefully be
             # at the correct position.
@@ -265,11 +278,15 @@ class Motor():
 
 class BrickPi():
 
-    def __init__(self):
+    def __init__(self, ser = None):
         self.Address = [ 1, 2 ]
-        self.ser = serial.Serial()
-        self.ser.port='/dev/ttyAMA0'
-        self.ser.baudrate = 500000
+
+        if (ser is None):
+            self.ser = serial.Serial()
+            self.ser.port='/dev/ttyAMA0'
+            self.ser.baudrate = 500000
+        else :
+            self.ser = ser
 
         # Not sure if this varies from Pi to Pi but on mine if you tell it to
         # sleep for 100ms it sleeps for 103ms or 104ms
