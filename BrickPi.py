@@ -172,8 +172,6 @@ class Motor():
         return 0
 
     def rotate(self, power, degrees, sensors = []):
-        print "Got sensors"
-        print str(sensors)
         self.power = abs(power)
 
         if degrees == 0:

@@ -28,8 +28,8 @@ class Acu():
 		self.azimuth_tolerance = azimuth_tolerance
 
 		BrickPiOriginal.SensorType[PORT_1] = TYPE_SENSOR_TOUCH
+		BrickPiOriginal.SensorType[PORT_2] = TYPE_SENSOR_TOUCH
 		BrickPiSetupSensors()
-
 
 		if (logger is None):
 			self.logger = MyLogger()
@@ -39,6 +39,39 @@ class Acu():
 		self.logger.info('Initial azimuth position: %d' % (self.azimuth_current_pos))
 		self.logger.info('Initial elevation position: %d' % (self.elevation_current_pos))
 		# self.logger.info('self.azimuth_touch ' + str(self.azimuth_touch))
+
+	def reset_azimuth(self):
+		BrickPiOriginal.MotorEnable[PORT_A] = 1
+		BrickPiUpdateValues()
+
+		if (BrickPiOriginal.SensorType[PORT_1] != 1):
+			BrickPiOriginal.MotorSpeed[PORT_A] = 30
+
+		BrickPiUpdateValues()
+
+		while(BrickPiOriginal.Sensor[PORT_1] != 1):
+			BrickPiUpdateValues()
+			time.sleep(0.05)
+
+		BrickPiOriginal.MotorSpeed[PORT_A] = -30
+		BrickPiUpdateValues()
+
+	def reset_elevation(self):
+		BrickPiOriginal.MotorEnable[PORT_B] = 1
+		BrickPiUpdateValues()
+
+		if (BrickPiOriginal.SensorType[PORT_2] != 1):
+			BrickPiOriginal.MotorSpeed[PORT_B] = 30
+
+		BrickPiUpdateValues()
+
+		while(BrickPiOriginal.Sensor[PORT_2] != 1):
+			BrickPiUpdateValues()
+			time.sleep(0.05)
+
+		BrickPiOriginal.MotorSpeed[PORT_B] = -30
+		BrickPiUpdateValues()
+
 
 	def get_azimuth(self):
 		return self.azimuth
@@ -62,7 +95,6 @@ class Acu():
 		self.azimuth_current_pos = self.azimuth_motor.get_position_in_degrees()
 
 	def reverse_elevation(self, value):
-		print "Reversing for " + str(value)
 		self.elevation_motor.rotate(self.elevation_power, value)
 		self.elevation_motor.update_position()
 		self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()

@@ -71,5 +71,34 @@ def elevation_get():
 
 	return response
 
+
+@app.route('/acu/reset_azimuth', methods=['PUT'])
+def reset_azimuth():
+
+	acu.reset_azimuth()
+
+	response = Response(
+		response = json.dumps(
+			{
+			}),
+		status = 200,
+		mimetype = "application/json");
+
+	return response
+
+@app.route('/acu/reset_elevation', methods=['PUT'])
+def reset_elevation():
+
+	acu.reset_elevation()
+
+	response = Response(
+		response = json.dumps(
+			{
+			}),
+		status = 200,
+		mimetype = "application/json");
+
+	return response
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
