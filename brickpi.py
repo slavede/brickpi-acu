@@ -14,10 +14,6 @@ file_handler = TimedRotatingFileHandler('/var/log/brickpi-flask.log')
 app.logger.addHandler(file_handler)
 acu = Acu(logger = app.logger)
 
-@app.route('/')
-def hello_world():
-    return 'Hello World!'
-
 @app.route('/acu/azimuth', methods=['PUT'])
 def azimuth_put():
 
@@ -26,8 +22,8 @@ def azimuth_put():
 	response = Response(
 		response = json.dumps(
 			{
-				"azimuth" : acu.get_azimuth(),
-				"brick_pi_azimuth" : acu.get_brick_pi_azimuth() - 180
+				"value" : acu.get_azimuth(),
+				"brick_pi_value" : acu.get_brick_pi_azimuth() - 180
 			}),
 		status = 200,
 		mimetype = "application/json");
@@ -55,8 +51,8 @@ def elevation_put():
 	response = Response(
 		response = json.dumps(
 			{
-				"elevation" : acu.get_elevation(),
-				"brick_pi_elevation" : acu.get_brick_pi_elevation()
+				"value" : acu.get_elevation(),
+				"brick_pi_value" : acu.get_brick_pi_elevation()
 			}),
 		status = 200,
 		mimetype = "application/json");

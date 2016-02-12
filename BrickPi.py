@@ -246,13 +246,11 @@ class Motor():
                           time_to_sleep))
             '''
 
-            print "Checking sensors----------"
             counter += 1
             for sensor in sensors:
                 if (counter == 5):
                     sensor['update_values_method']()
                     counter = 0
-                print str(sensor['brickpi'].Sensor[sensor['port']])
                 if (sensor['brickpi'].Sensor[sensor['port']] == 1):
                     self.stop(True)
                     return False
