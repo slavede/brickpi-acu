@@ -16,29 +16,21 @@ acu = Acu(logger = app.logger)
 
 @app.route('/acu/azimuth', methods=['PUT'])
 def azimuth_put():
-
-	acu.set_azimuth(int(request.json['value']))
+	acu.set_azimuth(int(request.data))
 
 	response = Response(
-		response = json.dumps(
-			{
-				"value" : acu.get_azimuth(),
-				"brick_pi_value" : acu.get_brick_pi_azimuth() - 180
-			}),
+		response = str(acu.get_brick_pi_azimuth() - 180),
 		status = 200,
-		mimetype = "application/json");
+		mimetype = "html/text");
 
 	return response
 
 @app.route('/acu/azimuth', methods=['GET'])
 def azimuth_get():
 	response = Response(
-		response = json.dumps(
-			{
-				"value" : acu.get_azimuth()
-			}),
+		response = str(acu.get_brick_pi_azimuth() - 180),
 		status = 200,
-		mimetype = "application/json");
+		mimetype = "html/text");
 
 	return response
 
@@ -46,26 +38,19 @@ def azimuth_get():
 @app.route('/acu/elevation', methods=['PUT'])
 def elevation_put():
 
-	acu.set_elevation(int(request.json['value']))
+	acu.set_elevation(int(request.data))
 
 	response = Response(
-		response = json.dumps(
-			{
-				"value" : acu.get_elevation(),
-				"brick_pi_value" : acu.get_brick_pi_elevation()
-			}),
+		response = str(acu.get_brick_pi_elevation()),
 		status = 200,
-		mimetype = "application/json");
+		mimetype = "html/text");
 
 	return response
 
 @app.route('/acu/elevation', methods=['GET'])
 def elevation_get():
 	response = Response(
-		response = json.dumps(
-			{
-				"value" : acu.get_elevation()
-			}),
+		response = str(acu.get_brick_pi_elevation()),
 		status = 200,
 		mimetype = "application/json");
 

@@ -80,10 +80,10 @@ class Acu():
 		return self.azimuth_current_pos
 
 	def get_elevation(self):
-		return self.elevation - 45
+		return self.elevation
 
 	def get_brick_pi_elevation(self):
-		return self.elevation_current_pos - 45
+		return self.elevation_current_pos
 
 	def reverse_azimuth(self, value, sensors = []):
 		self.logger.info("Reversing for " + str(value))
@@ -106,8 +106,6 @@ class Acu():
 
 		if (value > 90):
 			value = 90
-
-		value += 45
 
 		number_of_iterations = 0
 		tollerant_difference = abs(value - self.elevation_current_pos)/2 if abs(value - self.elevation_current_pos) <= self.elevation_tollerance else self.elevation_tollerance
@@ -170,7 +168,7 @@ class Acu():
 
 		self.elevation = value
 
-		self.logger.info("New position: " + str(self.elevation_current_pos - 45) + ", wanted: "  + str(value - 45))
+		self.logger.info("New position: " + str(self.elevation_current_pos) + ", wanted: "  + str(value))
 		self.logger.info("===============================================\n")
 
 
