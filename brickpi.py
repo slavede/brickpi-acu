@@ -19,7 +19,7 @@ def azimuth_put():
 	acu.set_azimuth(int(request.data))
 
 	response = Response(
-		response = str(acu.get_brick_pi_azimuth() - 180),
+		response = str(acu.get_azimuth()),
 		status = 200,
 		mimetype = "html/text");
 
@@ -28,7 +28,8 @@ def azimuth_put():
 @app.route('/acu/azimuth', methods=['GET'])
 def azimuth_get():
 	response = Response(
-		response = str(acu.get_brick_pi_azimuth() - 180),
+		# response = str(acu.get_brick_pi_azimuth() - 180),
+		response = str(acu.get_azimuth()),
 		status = 200,
 		mimetype = "html/text");
 
@@ -52,7 +53,7 @@ def elevation_get():
 	response = Response(
 		response = str(acu.get_brick_pi_elevation()),
 		status = 200,
-		mimetype = "application/json");
+		mimetype = "html/text");
 
 	return response
 

@@ -11,13 +11,15 @@ class MyLogger():
 		print message
 
 class Acu():
-	def __init__(self, azimuth_power = 30, elevation_power=30, elevation_tollerance=5, azimuth_tolerance = 5, logger = None):
+	def __init__(self, azimuth_power = 255, elevation_power=30, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57):
 		self.mypi = BrickPi(ser = ser)
 		
 		self.azimuth_motor = self.mypi.motors[PORT_A]
 		self.azimuth_current_pos = self.azimuth_motor.get_position_in_degrees()
-		self.azimuth = self.azimuth_current_pos - 180
+		# self.azimuth = self.azimuth_current_pos - 180
+		self.azimuth = -180
 		self.azimuth_power = azimuth_power
+		self.azimuth_coef = azimuth_coef
 
 		self.elevation_motor = self.mypi.motors[PORT_B]
 		self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
@@ -171,110 +173,153 @@ class Acu():
 		self.logger.info("New position: " + str(self.elevation_current_pos) + ", wanted: "  + str(value))
 		self.logger.info("===============================================\n")
 
-
 	def set_azimuth(self, value):
+		self.logger.info('Setting azimuth to ' + (str(value)))
+		
+		encoder_before = self.mypi.Encoder[PORT_A]
+		self.logger.info('encoder_before' + str(encoder_before))
+
 		if (value >= 180):
 			value = 179
 
 		if (value <= -180):
-			value = -179
+			value = -180
 
-		value_to_set = value + 180
+		self.logger.info('self.azimuth: ' + str(self.azimuth));
+		self.logger.info('value_to_set: ' + str(value));
 
-		number_of_iterations = 0
-		tollerant_difference = abs(value_to_set - self.azimuth_current_pos)/2 if abs(value_to_set - self.azimuth_current_pos) <= self.azimuth_tolerance else self.azimuth_tolerance
+		rotate_value = None
+		if (self.azimuth > value):
+				rotate_value = (self.azimuth - value)
 
-		BrickPiUpdateValues()
-		sensors = [{
-			'brickpi' : BrickPiOriginal,
-			'port' : PORT_1,
-			'update_values_method' : BrickPiUpdateValues
-		}]
-
-		self.logger.info("\n===============================================")
-		self.logger.info("Azimuth is at " + str(self.azimuth_current_pos))
-		self.logger.info("Setting azimuth to " + str(value) + " (that is " + str(value_to_set) + " for BrickPi)")
-		self.logger.info("Tollerant difference is " + str(tollerant_difference))
-		self.logger.info("")
-
-		while (abs(value_to_set - self.azimuth_current_pos) > tollerant_difference):
-			number_of_iterations += 1
-			BrickPiUpdateValues()
-
-			self.logger.info("Iteration # " + str(number_of_iterations))
-			self.logger.info("------------------------")
-			self.logger.info("Azimuth is at: " + str(self.azimuth_current_pos))
-			self.logger.info("value_to_set: " + str(value_to_set))
-			self.logger.info("Tollerant difference is " + str(tollerant_difference))
-			
-			if (self.azimuth_current_pos > value_to_set):
 				self.logger.info("Current position is higher than desired degree, decreasing it")
-				
-				rotate_value = (self.azimuth_current_pos - value_to_set) if (number_of_iterations <= 2) else 1/float(number_of_iterations)
-
 				self.logger.info("rotate_value: " + str(rotate_value))
-				# ret_value = self.azimuth_motor.rotate(self.azimuth_power, -1 * rotate_value, sensors = sensors)
-				ret_value = self.azimuth_motor.rotate(self.azimuth_power, -1 * rotate_value)
-				if (ret_value == False):
-					break
-				self.azimuth_motor.update_position()
 
-				prev_position = self.azimuth_current_pos;
-				self.azimuth_current_pos = self.azimuth_motor.get_position_in_degrees()
+				self.azimuth_motor.rotate(self.azimuth_power, rotate_value * self.azimuth_coef)
+				self.elevation_motor.update_position()
 
-				if (self.azimuth_current_pos > prev_position):
-					self.logger.info("We went overboard, we've set it at " + str(self.azimuth_current_pos) + " let's reverse")
-					# until it becomes again lower
-					while self.azimuth_current_pos > 180:
-						# ret_value = self.reverse_azimuth(360 - self.azimuth_current_pos + tollerant_difference, sensors)
-						ret_value = self.reverse_azimuth(360 - self.azimuth_current_pos + tollerant_difference)
-						if (ret_value == False):
-							break
-						self.logger.info("self.azimuth_current_pos: " + str(self.azimuth_current_pos))
-					self.logger.info("We reversed")
+		elif (self.azimuth < value):
+				rotate_value = (value - self.azimuth) 
 
-					if (abs(self.azimuth_current_pos-value_to_set) <= tollerant_difference):
-						value_to_set = self.azimuth_current_pos
-						self.logger.info("updating value_to_set to after reversing because it is good enough " + str(self.azimuth_current_pos))
-
-				# self.azimuth = self.azimuth_current_pos - 180
-
-			elif (self.azimuth_current_pos < value_to_set):
 				self.logger.info("Current position is lower than desired degree, increasing it")
+				self.logger.info("rotate_value" + str(rotate_value))
 
-				rotate_value = (value_to_set - self.azimuth_current_pos) if (number_of_iterations <= 2) else 1/float(number_of_iterations)
+				self.azimuth_motor.rotate(self.azimuth_power, -1 * rotate_value * self.azimuth_coef)
+				self.elevation_motor.update_position()
 
-				self.logger.info("rotate_value: " + str(rotate_value))
-				# ret_value = self.azimuth_motor.rotate(self.azimuth_power, rotate_value, sensors = sensors)
-				ret_value = self.azimuth_motor.rotate(self.azimuth_power, rotate_value)
-				if (ret_value == False):
-					break
-				self.azimuth_motor.update_position()
+		encoder_after = self.mypi.Encoder[PORT_A]
 
-				prev_position = self.azimuth_current_pos;
-				self.azimuth_current_pos = self.azimuth_motor.get_position_in_degrees()
+		self.logger.info('encoder_after' + str(encoder_after))
 
-				if (self.azimuth_current_pos < prev_position):
-					self.logger.info("We went overboard, we've set it at " + str(self.azimuth_current_pos) + " let's reverse")
-					# until it becomes again higher
-					while self.azimuth_current_pos < 180:
-						# ret_value = self.reverse_azimuth(-1 * (self.azimuth_current_pos + tollerant_difference), sensors)
-						ret_value = self.reverse_azimuth(-1 * (self.azimuth_current_pos + tollerant_difference))
-						if (ret_value == False):
-							break
-						self.logger.info("self.azimuth_current_pos: " + str(self.azimuth_current_pos))
-					self.logger.info("We reversed")
+		self.azimuth = self.azimuth - ((encoder_after - encoder_before)/self.azimuth_coef)/2
 
-					if (abs(self.azimuth_current_pos-value_to_set) <= tollerant_difference):
-						value_to_set = self.azimuth_current_pos
-						self.logger.info("updating value_to_set to after reversing because it is good enough " + str(self.azimuth_current_pos))
+		self.logger.info('Wanted to move for ' + str(rotate_value))
+		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.azimuth_coef)/2))
 
-				# self.azimuth = self.azimuth_current_pos - 180
 
-			time.sleep(0.1)
+	# def set_azimuth(self, value):
+	# 	if (value >= 180):
+	# 		value = 179
 
-		# TODO - set to desired (what we have got as param) or real?
-		self.azimuth = value
+	# 	if (value <= -180):
+	# 		value = -179
 
-		self.logger.info("New position: " + str(self.azimuth_current_pos) + ", wanted: "  + str(value_to_set))
-		self.logger.info("===============================================\n")
+	# 	value_to_set = value + 180
+
+	# 	number_of_iterations = 0
+	# 	tollerant_difference = abs(value_to_set - self.azimuth_current_pos)/2 if abs(value_to_set - self.azimuth_current_pos) <= self.azimuth_tolerance else self.azimuth_tolerance
+
+	# 	BrickPiUpdateValues()
+	# 	sensors = [{
+	# 		'brickpi' : BrickPiOriginal,
+	# 		'port' : PORT_1,
+	# 		'update_values_method' : BrickPiUpdateValues
+	# 	}]
+
+	# 	self.logger.info("\n===============================================")
+	# 	self.logger.info("Azimuth is at " + str(self.azimuth_current_pos))
+	# 	self.logger.info("Setting azimuth to " + str(value) + " (that is " + str(value_to_set) + " for BrickPi)")
+	# 	self.logger.info("Tollerant difference is " + str(tollerant_difference))
+	# 	self.logger.info("")
+
+	# 	while (abs(value_to_set - self.azimuth_current_pos) > tollerant_difference):
+	# 		number_of_iterations += 1
+	# 		BrickPiUpdateValues()
+
+	# 		self.logger.info("Iteration # " + str(number_of_iterations))
+	# 		self.logger.info("------------------------")
+	# 		self.logger.info("Azimuth is at: " + str(self.azimuth_current_pos))
+	# 		self.logger.info("value_to_set: " + str(value_to_set))
+	# 		self.logger.info("Tollerant difference is " + str(tollerant_difference))
+			
+	# 		if (self.azimuth_current_pos > value_to_set):
+	# 			self.logger.info("Current position is higher than desired degree, decreasing it")
+				
+	# 			rotate_value = (self.azimuth_current_pos - value_to_set) if (number_of_iterations <= 2) else 1/float(number_of_iterations)
+
+	# 			self.logger.info("rotate_value: " + str(rotate_value))
+	# 			# ret_value = self.azimuth_motor.rotate(self.azimuth_power, -1 * rotate_value, sensors = sensors)
+	# 			ret_value = self.azimuth_motor.rotate(self.azimuth_power, -1 * rotate_value)
+	# 			if (ret_value == False):
+	# 				break
+	# 			self.azimuth_motor.update_position()
+
+	# 			prev_position = self.azimuth_current_pos;
+	# 			self.azimuth_current_pos = self.azimuth_motor.get_position_in_degrees()
+
+	# 			if (self.azimuth_current_pos > prev_position):
+	# 				self.logger.info("We went overboard, we've set it at " + str(self.azimuth_current_pos) + " let's reverse")
+	# 				# until it becomes again lower
+	# 				while self.azimuth_current_pos > 180:
+	# 					# ret_value = self.reverse_azimuth(360 - self.azimuth_current_pos + tollerant_difference, sensors)
+	# 					ret_value = self.reverse_azimuth(360 - self.azimuth_current_pos + tollerant_difference)
+	# 					if (ret_value == False):
+	# 						break
+	# 					self.logger.info("self.azimuth_current_pos: " + str(self.azimuth_current_pos))
+	# 				self.logger.info("We reversed")
+
+	# 				if (abs(self.azimuth_current_pos-value_to_set) <= tollerant_difference):
+	# 					value_to_set = self.azimuth_current_pos
+	# 					self.logger.info("updating value_to_set to after reversing because it is good enough " + str(self.azimuth_current_pos))
+
+	# 			# self.azimuth = self.azimuth_current_pos - 180
+
+	# 		elif (self.azimuth_current_pos < value_to_set):
+	# 			self.logger.info("Current position is lower than desired degree, increasing it")
+
+	# 			rotate_value = (value_to_set - self.azimuth_current_pos) if (number_of_iterations <= 2) else 1/float(number_of_iterations)
+
+	# 			self.logger.info("rotate_value: " + str(rotate_value))
+	# 			# ret_value = self.azimuth_motor.rotate(self.azimuth_power, rotate_value, sensors = sensors)
+	# 			ret_value = self.azimuth_motor.rotate(self.azimuth_power, rotate_value)
+	# 			if (ret_value == False):
+	# 				break
+	# 			self.azimuth_motor.update_position()
+
+	# 			prev_position = self.azimuth_current_pos;
+	# 			self.azimuth_current_pos = self.azimuth_motor.get_position_in_degrees()
+
+	# 			if (self.azimuth_current_pos < prev_position):
+	# 				self.logger.info("We went overboard, we've set it at " + str(self.azimuth_current_pos) + " let's reverse")
+	# 				# until it becomes again higher
+	# 				while self.azimuth_current_pos < 180:
+	# 					# ret_value = self.reverse_azimuth(-1 * (self.azimuth_current_pos + tollerant_difference), sensors)
+	# 					ret_value = self.reverse_azimuth(-1 * (self.azimuth_current_pos + tollerant_difference))
+	# 					if (ret_value == False):
+	# 						break
+	# 					self.logger.info("self.azimuth_current_pos: " + str(self.azimuth_current_pos))
+	# 				self.logger.info("We reversed")
+
+	# 				if (abs(self.azimuth_current_pos-value_to_set) <= tollerant_difference):
+	# 					value_to_set = self.azimuth_current_pos
+	# 					self.logger.info("updating value_to_set to after reversing because it is good enough " + str(self.azimuth_current_pos))
+
+	# 			# self.azimuth = self.azimuth_current_pos - 180
+
+	# 		time.sleep(0.1)
+
+	# 	# TODO - set to desired (what we have got as param) or real?
+	# 	self.azimuth = value
+
+	# 	self.logger.info("New position: " + str(self.azimuth_current_pos) + ", wanted: "  + str(value_to_set))
+	# 	self.logger.info("===============================================\n")
