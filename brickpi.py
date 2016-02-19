@@ -16,7 +16,7 @@ acu = Acu(logger = app.logger)
 
 @app.route('/acu/azimuth', methods=['PUT'])
 def azimuth_put():
-	acu.set_azimuth(int(request.data))
+	acu.set_azimuth(float(request.data))
 
 	response = Response(
 		response = str(acu.get_azimuth()),
@@ -38,8 +38,8 @@ def azimuth_get():
 
 @app.route('/acu/elevation', methods=['PUT'])
 def elevation_put():
-
-	acu.set_elevation(int(request.data))
+	print "Got elevation put:" + str(request.data)
+	acu.set_elevation(float(request.data))
 
 	response = Response(
 		response = str(acu.get_elevation()),
@@ -51,7 +51,7 @@ def elevation_put():
 @app.route('/acu/elevation/change', methods=['PUT'])
 def change_elevation():
 
-	acu.change_elevation(int(request.data))
+	acu.change_elevation(float(request.data))
 
 	response = Response(
 		response = str(acu.get_elevation()),
@@ -63,7 +63,7 @@ def change_elevation():
 @app.route('/acu/azimuth/change', methods=['PUT'])
 def change_azimuth():
 
-	acu.change_azimuth(int(request.data))
+	acu.change_azimuth(float(request.data))
 
 	response = Response(
 		response = str(acu.get_azimuth()),

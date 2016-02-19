@@ -5,13 +5,15 @@ from BrickPi import BrickPi, PORT_A, PORT_B, time
 from BrickPiOriginal import BrickPiOriginal, PORT_1, PORT_2, PORT_3, PORT_4, TYPE_SENSOR_TOUCH, BrickPiSetup, BrickPiSetupSensors, BrickPiUpdateValues, ser
 
 import logging
+import decimal
+import math
 
 class MyLogger():
 	def info(self, message):
 		print message
 
 class Acu():
-	def __init__(self, azimuth_power = 255, elevation_power=155, elevation_power_down=100, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57, elevation_coef = 13):
+	def __init__(self, azimuth_power = 255, elevation_power=75, elevation_power_down=75, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57, elevation_coef = 12):
 		self.mypi = BrickPi(ser = ser)
 		
 		self.azimuth_motor = self.mypi.motors[PORT_A]
@@ -32,6 +34,9 @@ class Acu():
 		self.elevation_tollerance = elevation_tollerance
 		self.azimuth_tolerance = azimuth_tolerance
 
+		self.elevation_in_progress = False
+		self.azimuth_in_progress = False
+
 		BrickPiOriginal.SensorType[PORT_1] = TYPE_SENSOR_TOUCH
 		BrickPiOriginal.SensorType[PORT_2] = TYPE_SENSOR_TOUCH
 		BrickPiSetupSensors()
@@ -41,8 +46,8 @@ class Acu():
 		else :
 			self.logger = logger;
 
-		self.logger.info('Initial azimuth position: %d' % (self.azimuth_current_pos))
-		self.logger.info('Initial elevation position: %d' % (self.elevation_current_pos))
+		self.logger.info('Initial azimuth position: %d' % (self.azimuth))
+		self.logger.info('Initial elevation position: %d' % (self.elevation))
 		# self.logger.info('self.azimuth_touch ' + str(self.azimuth_touch))
 
 	def reset_azimuth(self):
@@ -79,13 +84,13 @@ class Acu():
 
 
 	def get_azimuth(self):
-		return self.azimuth
+		return round(self.azimuth, 2)
 
 	def get_brick_pi_azimuth(self):
 		return self.azimuth_current_pos
 
 	def get_elevation(self):
-		return self.elevation
+		return round(self.elevation, 2)
 
 	def get_brick_pi_elevation(self):
 		return self.elevation_current_pos
@@ -105,6 +110,8 @@ class Acu():
 		self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
 
 	def change_elevation(self, value):
+		self.elevation_in_progress = True
+
 		self.logger.info('\Changing elevation by ' + (str(value)))
 		self.logger.info('self.elevation: ' + str(self.elevation));
 		
@@ -122,6 +129,8 @@ class Acu():
 
 		self.logger.info('Wanted to move for ' + str(value))
 		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.elevation_coef)/2))
+
+		elevation_in_progress = False
 
 	def change_azimuth(self, value):
 		self.logger.info('\Changing azimuth by ' + (str(value)))
@@ -143,6 +152,7 @@ class Acu():
 		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.azimuth_coef)/2))
 
 	def set_elevation(self, value):
+		self.elevation_in_progress = True
 		self.logger.info('\nSetting elevation to ' + (str(value)))
 		
 		encoder_before = self.mypi.Encoder[PORT_B]
@@ -158,13 +168,17 @@ class Acu():
 		self.logger.info('value_to_set: ' + str(value));
 
 		rotate_value = None
+		action = None
 		if (self.elevation > value):
 				rotate_value = (self.elevation - value)
+
+				action = 'decrease'
 
 				self.logger.info("Current position is higher than desired degree, decreasing it")
 				self.logger.info("rotate_value: " + str(rotate_value))
 
 				self.elevation_motor.rotate(self.elevation_power_down, -1 * rotate_value * self.elevation_coef)
+				time.sleep(0.1)
 				self.elevation_motor.update_position()
 
 		elif (self.elevation < value):
@@ -174,20 +188,27 @@ class Acu():
 				self.logger.info("rotate_value" + str(rotate_value))
 
 				self.elevation_motor.rotate(self.elevation_power, rotate_value * self.elevation_coef)
+				time.sleep(0.1)
 				self.elevation_motor.update_position()
 
+		time.sleep(0.1)
 		encoder_after = self.mypi.Encoder[PORT_B]
 
 		self.logger.info('encoder_after' + str(encoder_after))
 
-		self.elevation = self.elevation + ((encoder_after - encoder_before)/self.elevation_coef)/2
+		self.elevation = self.elevation + ((encoder_after - encoder_before)/float(self.elevation_coef))/2
 
 		if (self.elevation < 0):
-			self.logger.info('We went under 0, reseting it to 0');
+			self.logger.info('We went under 0, reseting it to 0')
 			self.elevation = 0
+		elif (self.elevation > 90):
+			self.logger.info('We went over 90, reseting it to 90')
+			self.elevation = 90
 
 		self.logger.info('Wanted to move for ' + str(rotate_value))
-		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.elevation_coef)/2))
+		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/float(self.elevation_coef))/2))
+
+		self.elevation_in_progress = False
 
 	# def set_elevation(self, value):
 
@@ -262,6 +283,7 @@ class Acu():
 	# 	self.logger.info("===============================================\n")
 
 	def set_azimuth(self, value):
+		self.azimuth_in_progress = True
 		self.logger.info('Setting azimuth to ' + (str(value)))
 		
 		encoder_before = self.mypi.Encoder[PORT_A]
@@ -299,7 +321,7 @@ class Acu():
 
 		self.logger.info('encoder_after' + str(encoder_after))
 
-		self.azimuth = self.azimuth - ((encoder_after - encoder_before)/self.azimuth_coef)/2
+		self.azimuth = self.azimuth - ((encoder_after - encoder_before)/float(self.azimuth_coef))/2
 
 		if (self.azimuth < -180):
 			self.logger.info('We went under -180, reseting it to -180');
@@ -310,7 +332,9 @@ class Acu():
 			self.azimuth = 179
 
 		self.logger.info('Wanted to move for ' + str(rotate_value))
-		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.azimuth_coef)/2))
+		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/float(self.azimuth_coef))/2))
+
+		self.azimuth_in_progress = False
 
 
 	# def set_azimuth(self, value):
