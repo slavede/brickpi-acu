@@ -11,20 +11,23 @@ class MyLogger():
 		print message
 
 class Acu():
-	def __init__(self, azimuth_power = 255, elevation_power=30, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57):
+	def __init__(self, azimuth_power = 255, elevation_power=155, elevation_power_down=100, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57, elevation_coef = 13):
 		self.mypi = BrickPi(ser = ser)
 		
 		self.azimuth_motor = self.mypi.motors[PORT_A]
 		self.azimuth_current_pos = self.azimuth_motor.get_position_in_degrees()
 		# self.azimuth = self.azimuth_current_pos - 180
-		self.azimuth = -180
+		self.azimuth = 0
 		self.azimuth_power = azimuth_power
 		self.azimuth_coef = azimuth_coef
 
 		self.elevation_motor = self.mypi.motors[PORT_B]
 		self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
-		self.elevation = self.elevation_current_pos
+		# self.elevation = self.elevation_current_pos
+		self.elevation = 0
 		self.elevation_power = elevation_power
+		self.elevation_power_down = elevation_power_down
+		self.elevation_coef = elevation_coef
 
 		self.elevation_tollerance = elevation_tollerance
 		self.azimuth_tolerance = azimuth_tolerance
@@ -101,77 +104,162 @@ class Acu():
 		self.elevation_motor.update_position()
 		self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
 
+	def change_elevation(self, value):
+		self.logger.info('\Changing elevation by ' + (str(value)))
+		self.logger.info('self.elevation: ' + str(self.elevation));
+		
+		encoder_before = self.mypi.Encoder[PORT_B]
+		self.logger.info('encoder_before' + str(encoder_before))
+
+		self.logger.info("rotate_value: " + str(value))
+
+		self.elevation_motor.rotate(self.elevation_power_down, value * self.elevation_coef)
+		self.elevation_motor.update_position()
+
+		encoder_after = self.mypi.Encoder[PORT_B]
+
+		self.logger.info('encoder_after' + str(encoder_after))
+
+		self.logger.info('Wanted to move for ' + str(value))
+		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.elevation_coef)/2))
+
+	def change_azimuth(self, value):
+		self.logger.info('\Changing azimuth by ' + (str(value)))
+		self.logger.info('self.azimuth: ' + str(self.azimuth));
+		
+		encoder_before = self.mypi.Encoder[PORT_A]
+		self.logger.info('encoder_before' + str(encoder_before))
+
+		self.logger.info("rotate_value: " + str(value))
+
+		self.azimuth_motor.rotate(self.azimuth_power, -1 * value * self.azimuth_coef)
+		self.azimuth_motor.update_position()
+
+		encoder_after = self.mypi.Encoder[PORT_A]
+
+		self.logger.info('encoder_after' + str(encoder_after))
+
+		self.logger.info('Wanted to move for ' + str(value))
+		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.azimuth_coef)/2))
+
 	def set_elevation(self, value):
+		self.logger.info('\nSetting elevation to ' + (str(value)))
+		
+		encoder_before = self.mypi.Encoder[PORT_B]
+		self.logger.info('encoder_before' + str(encoder_before))
 
-		if (value < 0):
-			value = 0
-
-		if (value > 90):
+		if (value >= 90):
 			value = 90
 
-		number_of_iterations = 0
-		tollerant_difference = abs(value - self.elevation_current_pos)/2 if abs(value - self.elevation_current_pos) <= self.elevation_tollerance else self.elevation_tollerance
+		if (value <= 0):
+			value = 0
 
-		self.logger.info("\n===============================================")
-		self.logger.info("Elevation is at " + str(self.elevation_current_pos))
-		self.logger.info("Setting elevation to " + str(value))
-		self.logger.info("Tollerant difference is " + str(tollerant_difference))
-		self.logger.info("")
+		self.logger.info('self.elevation: ' + str(self.elevation));
+		self.logger.info('value_to_set: ' + str(value));
 
-		while (abs(value - self.elevation_current_pos) > tollerant_difference):
-			number_of_iterations += 1
-			self.logger.info("Iteration # " + str(number_of_iterations))
-			self.logger.info("------------------------")
-			self.logger.info("Elevation is at: " + str(self.elevation_current_pos))
-			self.logger.info("value: " + str(value))
-			self.logger.info("Tollerant difference is " + str(tollerant_difference))
+		rotate_value = None
+		if (self.elevation > value):
+				rotate_value = (self.elevation - value)
 
-			if (self.elevation_current_pos > value):
 				self.logger.info("Current position is higher than desired degree, decreasing it")
-				
-				rotate_value = (self.elevation_current_pos - value) if (number_of_iterations <= 2) else 1/float(number_of_iterations)
-
 				self.logger.info("rotate_value: " + str(rotate_value))
-				self.elevation_motor.rotate(self.elevation_power, -1 * rotate_value)
+
+				self.elevation_motor.rotate(self.elevation_power_down, -1 * rotate_value * self.elevation_coef)
 				self.elevation_motor.update_position()
 
-				prev_position = self.elevation_current_pos;
-				self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
+		elif (self.elevation < value):
+				rotate_value = (value - self.elevation) 
 
-				if (self.elevation_current_pos > 180 and prev_position < 180):
-					self.logger.info("We went overboard, we've set it at " + str(self.elevation_current_pos) + " let's reverse")
-					# until it becomes again lower
-					while self.elevation_current_pos > 180:
-						self.reverse_elevation(360 - self.elevation_current_pos + tollerant_difference)
-						self.logger.info("self.elevation_current_pos: " + str(self.elevation_current_pos))
-					self.logger.info("We reversed")
-
-					if (abs(self.elevation_current_pos-value) <= tollerant_difference):
-						value = self.elevation_current_pos
-						self.logger.info("updating value to after reversing because it is good enough " + str(self.elevation_current_pos))
-
-
-			elif (self.elevation_current_pos < value):
 				self.logger.info("Current position is lower than desired degree, increasing it")
+				self.logger.info("rotate_value" + str(rotate_value))
 
-				rotate_value = (value - self.elevation_current_pos) if (number_of_iterations <= 2) else 1/float(number_of_iterations)
-
-				self.logger.info("rotate_value: " + str(rotate_value))
-				self.elevation_motor.rotate(self.elevation_power, rotate_value)
+				self.elevation_motor.rotate(self.elevation_power, rotate_value * self.elevation_coef)
 				self.elevation_motor.update_position()
 
-				prev_position = self.elevation_current_pos;
-				self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
+		encoder_after = self.mypi.Encoder[PORT_B]
 
-				# we can't go overboard (modulo) when top is 90 degrees
-				# no need to check that here
+		self.logger.info('encoder_after' + str(encoder_after))
 
-			time.sleep(0.1)
+		self.elevation = self.elevation + ((encoder_after - encoder_before)/self.elevation_coef)/2
 
-		self.elevation = value
+		if (self.elevation < 0):
+			self.logger.info('We went under 0, reseting it to 0');
+			self.elevation = 0
 
-		self.logger.info("New position: " + str(self.elevation_current_pos) + ", wanted: "  + str(value))
-		self.logger.info("===============================================\n")
+		self.logger.info('Wanted to move for ' + str(rotate_value))
+		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.elevation_coef)/2))
+
+	# def set_elevation(self, value):
+
+	# 	if (value < 0):
+	# 		value = 0
+
+	# 	if (value > 90):
+	# 		value = 90
+
+	# 	number_of_iterations = 0
+	# 	tollerant_difference = abs(value - self.elevation_current_pos)/2 if abs(value - self.elevation_current_pos) <= self.elevation_tollerance else self.elevation_tollerance
+
+	# 	self.logger.info("\n===============================================")
+	# 	self.logger.info("Elevation is at " + str(self.elevation_current_pos))
+	# 	self.logger.info("Setting elevation to " + str(value))
+	# 	self.logger.info("Tollerant difference is " + str(tollerant_difference))
+	# 	self.logger.info("")
+
+	# 	while (abs(value - self.elevation_current_pos) > tollerant_difference):
+	# 		number_of_iterations += 1
+	# 		self.logger.info("Iteration # " + str(number_of_iterations))
+	# 		self.logger.info("------------------------")
+	# 		self.logger.info("Elevation is at: " + str(self.elevation_current_pos))
+	# 		self.logger.info("value: " + str(value))
+	# 		self.logger.info("Tollerant difference is " + str(tollerant_difference))
+
+	# 		if (self.elevation_current_pos > value):
+	# 			self.logger.info("Current position is higher than desired degree, decreasing it")
+				
+	# 			rotate_value = (self.elevation_current_pos - value) if (number_of_iterations <= 2) else 1/float(number_of_iterations)
+
+	# 			self.logger.info("rotate_value: " + str(rotate_value))
+	# 			self.elevation_motor.rotate(self.elevation_power, -1 * rotate_value)
+	# 			self.elevation_motor.update_position()
+
+	# 			prev_position = self.elevation_current_pos;
+	# 			self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
+
+	# 			if (self.elevation_current_pos > 180 and prev_position < 180):
+	# 				self.logger.info("We went overboard, we've set it at " + str(self.elevation_current_pos) + " let's reverse")
+	# 				# until it becomes again lower
+	# 				while self.elevation_current_pos > 180:
+	# 					self.reverse_elevation(360 - self.elevation_current_pos + tollerant_difference)
+	# 					self.logger.info("self.elevation_current_pos: " + str(self.elevation_current_pos))
+	# 				self.logger.info("We reversed")
+
+	# 				if (abs(self.elevation_current_pos-value) <= tollerant_difference):
+	# 					value = self.elevation_current_pos
+	# 					self.logger.info("updating value to after reversing because it is good enough " + str(self.elevation_current_pos))
+
+
+	# 		elif (self.elevation_current_pos < value):
+	# 			self.logger.info("Current position is lower than desired degree, increasing it")
+
+	# 			rotate_value = (value - self.elevation_current_pos) if (number_of_iterations <= 2) else 1/float(number_of_iterations)
+
+	# 			self.logger.info("rotate_value: " + str(rotate_value))
+	# 			self.elevation_motor.rotate(self.elevation_power, rotate_value)
+	# 			self.elevation_motor.update_position()
+
+	# 			prev_position = self.elevation_current_pos;
+	# 			self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
+
+	# 			# we can't go overboard (modulo) when top is 90 degrees
+	# 			# no need to check that here
+
+	# 		time.sleep(0.1)
+
+	# 	self.elevation = value
+
+	# 	self.logger.info("New position: " + str(self.elevation_current_pos) + ", wanted: "  + str(value))
+	# 	self.logger.info("===============================================\n")
 
 	def set_azimuth(self, value):
 		self.logger.info('Setting azimuth to ' + (str(value)))
@@ -212,6 +300,14 @@ class Acu():
 		self.logger.info('encoder_after' + str(encoder_after))
 
 		self.azimuth = self.azimuth - ((encoder_after - encoder_before)/self.azimuth_coef)/2
+
+		if (self.azimuth < -180):
+			self.logger.info('We went under -180, reseting it to -180');
+			self.azimuth = 0
+
+		if (self.azimuth > 179):
+			self.logger.info('We went over 179, reseting it to 179');
+			self.azimuth = 179
 
 		self.logger.info('Wanted to move for ' + str(rotate_value))
 		self.logger.info('Moved for ' + str(((encoder_after - encoder_before)/self.azimuth_coef)/2))
