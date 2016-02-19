@@ -13,7 +13,7 @@ class MyLogger():
 		print message
 
 class Acu():
-	def __init__(self, azimuth_power = 255, elevation_power=75, elevation_power_down=75, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57, elevation_coef = 13):
+	def __init__(self, azimuth_power = 125, elevation_power=75, elevation_power_down=75, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57, elevation_coef = 13):
 		self.mypi = BrickPi(ser = ser)
 		
 		self.azimuth_motor = self.mypi.motors[PORT_A]
