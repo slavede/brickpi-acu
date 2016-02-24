@@ -13,20 +13,21 @@ class MyLogger():
 		print message
 
 class Acu():
-	def __init__(self, azimuth_power = 125, elevation_power=75, elevation_power_down=75, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57, elevation_coef = 13):
+
+	def __init__(self, azimuth_power = 125, elevation_power=75, elevation_power_down=75, elevation_tollerance=5, azimuth_tolerance = 5, logger = None, azimuth_coef = 57, elevation_coef = 13, initial_elevation = 0, initial_azimuth = 0):
 		self.mypi = BrickPi(ser = ser)
 		
 		self.azimuth_motor = self.mypi.motors[PORT_A]
 		self.azimuth_current_pos = self.azimuth_motor.get_position_in_degrees()
 		# self.azimuth = self.azimuth_current_pos - 180
-		self.azimuth = 0
+		self.azimuth = initial_azimuth
 		self.azimuth_power = azimuth_power
 		self.azimuth_coef = azimuth_coef
 
 		self.elevation_motor = self.mypi.motors[PORT_B]
 		self.elevation_current_pos = self.elevation_motor.get_position_in_degrees()
 		# self.elevation = self.elevation_current_pos
-		self.elevation = 0
+		self.elevation = initial_elevation
 		self.elevation_power = elevation_power
 		self.elevation_power_down = elevation_power_down
 		self.elevation_coef = elevation_coef
@@ -325,7 +326,7 @@ class Acu():
 
 		if (self.azimuth < -180):
 			self.logger.info('We went under -180, reseting it to -180');
-			self.azimuth = 0
+			self.azimuth = -180
 
 		if (self.azimuth > 179):
 			self.logger.info('We went over 179, reseting it to 179');

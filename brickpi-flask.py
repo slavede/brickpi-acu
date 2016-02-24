@@ -10,9 +10,16 @@ from logging.handlers import TimedRotatingFileHandler
 
 app = Flask(__name__)
 
+acu_data_file = open('data/acu.dat', 'r')
+data = acu_data_file.read()
+acu_data_file.close()
+
+initial_azimuth = float(data.split(',')[0])
+initial_elevation = float(data.split(',')[1])
+
 file_handler = TimedRotatingFileHandler('/var/log/brickpi-flask.log')
 app.logger.addHandler(file_handler)
-acu = Acu(logger = app.logger)
+acu = Acu(logger = app.logger, initial_azimuth=initial_azimuth, initial_elevation=initial_elevation)
 
 @app.route('/acu/azimuth', methods=['PUT'])
 def azimuth_put():
@@ -22,6 +29,9 @@ def azimuth_put():
 		response = str(acu.get_azimuth()),
 		status = 200,
 		mimetype = "html/text");
+
+	acu_data_file = open('data/acu.dat', 'w')
+	acu_data_file.write(str(acu.get_azimuth()) + ',' + str(acu.get_elevation()))
 
 	return response
 
@@ -46,6 +56,8 @@ def elevation_put():
 		status = 200,
 		mimetype = "html/text");
 
+	acu_data_file = open('data/acu.dat', 'w')
+	acu_data_file.write(str(acu.get_azimuth()) + ',' + str(acu.get_elevation()))
 	return response
 
 @app.route('/acu/elevation/change', methods=['PUT'])
