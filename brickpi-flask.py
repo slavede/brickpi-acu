@@ -17,7 +17,7 @@ acu_data_file.close()
 initial_azimuth = float(data.split(',')[0])
 initial_elevation = float(data.split(',')[1])
 
-file_handler = TimedRotatingFileHandler('/var/log/brickpi-flask.log')
+file_handler = TimedRotatingFileHandler('/var/log/brickpi-flask.log', when="d", interval=1, backupCount=2)
 app.logger.addHandler(file_handler)
 acu = Acu(logger = app.logger, initial_azimuth=initial_azimuth, initial_elevation=initial_elevation)
 
